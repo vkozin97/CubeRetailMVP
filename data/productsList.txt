@@ -1,0 +1,26 @@
+[
+    {
+        "name": "beer",
+        "productId": 0,
+        "description": "",
+        "price": null
+    },
+    {
+        "name": "milk",
+        "productId": 1,
+        "description": "",
+        "price": null
+    },
+    {
+        "name": "huggies",
+        "productId": 2,
+        "description": "",
+        "price": null
+    },
+    {
+        "name": "magazine",
+        "productId": 3,
+        "description": "",
+        "price": null
+    }
+]

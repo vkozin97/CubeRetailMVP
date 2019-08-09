@@ -1,0 +1,26 @@
+[
+    {
+        "clusterId": 0,
+        "name": "Молодые родители",
+        "description": ""
+    },
+    {
+        "clusterId": 1,
+        "name": "Старики"
+    },
+    {
+        "clusterId": 2,
+        "name": "Любители вина",
+        "description": ""
+    },
+    {
+        "clusterId": 3,
+        "name": "Любители пива",
+        "description": ""
+    },
+    {
+        "clusterId": 4,
+        "name": "На диете",
+        "description": ""
+    }
+]
