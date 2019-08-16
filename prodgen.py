@@ -1,5 +1,6 @@
 import numpy as np
 from pandas import read_csv, DataFrame
+import scipy.stats as stats
 import os
 import json
 
@@ -7,7 +8,7 @@ import json
 dataDir = 'data'
 productsFile = os.path.join(dataDir, "productsList.txt")
 clustersFile = os.path.join(dataDir, "clustersList.txt")
-weightsFile = os.path.join(dataDir, "weights.csv")
+lambdasFile = os.path.join(dataDir, "lambdas.csv")
 
 class Product:
     def __init__(self, productId, name, description="", price=None):
@@ -167,12 +168,12 @@ class ClustersList:
 
 class ProductsGenerator:
     
-    invalidWeightsArgument = Exception("Argument weights must be a filepath or an arraytype with shape (len(productsList), len(clusterList))")
+    invalidlambdasArgument = Exception("Argument lambdas must be a filepath or an arraytype with shape (len(productsList), len(clusterList))")
     invalidColumnsType = Exception("Column names must be integers")
     
     linker = '\n' + '-'*30 + '\n'
     
-    def __init__(self, productsList=None, clustersList=None, weights=None, randomSeed=110):
+    def __init__(self, productsList=None, clustersList=None, lambdas=None, randomSeed=110, richness=2):
         
         ### Arguments must be either 
         if type(productsList) is ProductsList:
@@ -184,48 +185,98 @@ class ProductsGenerator:
         else:
             self.clustersList = ClustersList(clustersList)
         
-        self.n = len(self.productsList)
-        self.m = len(self.clustersList)
+        self.n = len(self.clustersList)
+        self.m = len(self.productsList)
 
-        if weights is None:
-            self.weights = np.zeros((self.n, self.m))
-        elif type(weights) is str:
-            self.readWeightsFromFile(weights)
+        if lambdas is None:
+            self.lambdas = np.zeros((self.n, self.m))
+        elif type(lambdas) is str:
+            self.readlambdasFromFile(lambdas)
         else:
-            self.weights = np.array(weights)
-            if self.weights.shape != (self.n, self.m):
-                raise self.invalidWeightsArgument
+            self.lambdas = np.array(lambdas)
+            if self.lambdas.shape != (self.n, self.m):
+                raise self.invalidlambdasArgument
+        
+        self.clientIds = []
+        self.hiddenClusters = dict()
+        self.clientProducts = dict()
+        
+        np.random.seed(randomSeed)
+        
+        self.richness = richness
                 
-    def readWeightsFromFile(self, filepath):
+    def readlambdasFromFile(self, filepath):
         df = read_csv(filepath, sep=',', index_col=0)
 
-        self.weights = np.zeros((self.n, self.m))
-        for prodId in df.index:
-            for clustId in df.columns:
+        self.lambdas = np.zeros((self.n, self.m))
+        for clustId in df.index:
+            for prodId in df.columns:
                 try:
-                    self.weights[self.productsList.getIndexById(prodId), self.clustersList.getIndexById(int(clustId))] = df[clustId][prodId]
+                    self.lambdas[self.clustersList.getIndexById(int(clustId)), self.productsList.getIndexById(prodId)] = df[prodId][clustId]
                 except ValueError:
                     raise self.invalidColumnsType
         
-    def saveWeightsToFile(self, filepath):
-        df = DataFrame(self.weights)
-        df.index = [x.productId for x in self.productsList.productsList]
-        df.columns = [x.clusterId for x in self.clustersList.clustersList]
+    def savelambdasToFile(self, filepath):
+        df = DataFrame(self.lambdas)
+        df.columns = [x.productId for x in self.productsList.productsList]
+        df.index = [x.clusterId for x in self.clustersList.clustersList]
         df.to_csv(filepath, sep=',')
         
     def __str__(self):
-        df = DataFrame(self.weights)
-        df.index = [product.name for product in self.productsList.productsList]
-        df.columns = [cluster.name for cluster in self.clustersList.clustersList]
+        df = DataFrame(self.lambdas)
+        df.columns = [product.name for product in self.productsList.productsList]
+        df.index = [cluster.name for cluster in self.clustersList.clustersList]
         return str(self.productsList) + self.linker + str(self.clustersList) + self.linker + str(df)
     
     def __repr__(self):
-        df = DataFrame(self.weights)
-        df.index = [product.name for product in self.productsList.productsList]
-        df.columns = [cluster.name for cluster in self.clustersList.clustersList]
+        df = DataFrame(self.lambdas)
+        df.columns = [product.name for product in self.productsList.productsList]
+        df.index = [cluster.name for cluster in self.clustersList.clustersList]
         return str(self.productsList) + self.linker + str(self.clustersList) + self.linker + repr(df)
+    
+    @staticmethod
+    def softmax(x):
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum()
+    
+    @staticmethod
+    def logLikelihoodOfRealisationToDistribution(realisation, lambdas):
+        realisation = np.array(realisation)
+        lambdas = np.array(lambdas)
+        assert (realisation.shape == lambdas.shape and len(realisation.shape == 1) and realisation.shape[0] > 0)
+        
+        lambdas *= realisation.sum() / lambdas.sum()
+        
+        likelihood = 0
+        for i in range(len(realisation)):
+            likelihood += np.log(stats.poisson.pmf(realisation[i], lambdas[i]))
+        
+        return likelihood
+    
+    def getProductsListAndClusterPrediction(self, clientId, returnLogLikelihoods=False):
+        if not clientId in self.hiddenClusters:
+            self.clientIds.append(clientId)
+            self.hiddenClusters[clientId] = np.random.randint(len(self.n))
+            self.clientProducts[clientId] = np.zeros(self.m)
+        
+        d = self.lambdas[self.hiddenClusters[clientId]]
+        buyCoefficient = np.random.poisson(self.richness * 100) / 100.
+        resVector = [np.random.poisson(buyCoefficient * d[i]) for i in range(len(d))]
+        check = dict()
+        for i in range(self.m):
+            check[self.productsList[i].name] = resVector[i]
+            self.clientProducts[clientId][i] += resVector[i]
+    
+        logLikelihoods = [ProductsGenerator.logLikelihoodOfRealisationToDistribution(self.clientProducts[i], self.lambdas[self.hiddenClusters[i]]) for i in self.clientIds]
+        prediction = np.argmax(logLikelihoods)
+    
+        if returnLogLikelihoods:
+            return check, self.clustersList[prediction], logLikelihoods
+        else:
+            return check, self.clustersList[prediction]
+
 
 
 if __name__ == "__main__":
-    generator = ProductsGenerator(productsFile, clustersFile, weightsFile)
+    generator = ProductsGenerator(productsFile, clustersFile, lambdasFile)
     print(generator)

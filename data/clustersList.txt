@@ -10,12 +10,7 @@
     },
     {
         "clusterId": 2,
-        "name": "Любители вина",
-        "description": ""
-    },
-    {
-        "clusterId": 3,
-        "name": "Любители пива",
+        "name": "Любители выпить",
         "description": ""
     },
     {

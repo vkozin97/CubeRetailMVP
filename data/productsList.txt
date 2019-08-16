@@ -1,26 +1,56 @@
 [
     {
-        "name": "beer",
+        "name": "Молоко",
         "productId": 0,
-        "description": "",
-        "price": null
     },
     {
-        "name": "milk",
+        "name": "Детская игрушка",
         "productId": 1,
-        "description": "",
-        "price": null
     },
     {
-        "name": "huggies",
+        "name": "Huggies",
         "productId": 2,
-        "description": "",
-        "price": null
+        "description": "Подгузники",
     },
     {
-        "name": "magazine",
-        "productId": 3,
-        "description": "",
-        "price": null
-    }
+        "name": "Соска",
+        "productUd": 3,
+        "description": "Заглушка для малышей"
+    },
+    {
+        "name": "Журнал",
+        "productId": 4,
+    },
+    {
+        "name": "Мясо",
+        "productId": 5,
+    },
+    {
+        "name": "Гречка",
+        "productId": 6,
+    },
+    {
+        "name": "Пиво",
+        "productId": 7,
+    },
+    {
+        "name": "Вино",
+        "productId": 8,
+    },
+    {
+        "name": "Водка",
+        "productId": 9,
+    },
+    {
+        "name": "Хлеб",
+        "productId": 10,
+    },
+    {
+        "name": "Гамбургер",
+        "productId": 11,
+    },
+    {
+        "name": "Колбаса",
+        "productId": 12,
+    },
 ]
