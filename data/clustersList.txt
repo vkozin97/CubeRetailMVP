@@ -14,8 +14,8 @@
         "description": ""
     },
     {
-        "clusterId": 4,
-        "name": "На диете",
+        "clusterId": 3,
+        "name": "Здоровое питание",
         "description": ""
     }
 ]

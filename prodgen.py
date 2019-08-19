@@ -173,7 +173,7 @@ class ProductsGenerator:
     
     linker = '\n' + '-'*30 + '\n'
     
-    def __init__(self, productsList=None, clustersList=None, lambdas=None, randomSeed=110, richness=2):
+    def __init__(self, productsList=None, clustersList=None, lambdas=None, randomSeed=90, richness=1.5):
         
         ### Arguments must be either 
         if type(productsList) is ProductsList:
@@ -207,14 +207,19 @@ class ProductsGenerator:
                 
     def readlambdasFromFile(self, filepath):
         df = read_csv(filepath, sep=',', index_col=0)
+        self.lambdas_df = df
 
-        self.lambdas = np.zeros((self.n, self.m))
+        self.lambdas = np.zeros((self.n, self.m)) + 0.01
         for clustId in df.index:
             for prodId in df.columns:
                 try:
-                    self.lambdas[self.clustersList.getIndexById(int(clustId)), self.productsList.getIndexById(prodId)] = df[prodId][clustId]
+                    self.lambdas[self.clustersList.getIndexById(clustId), self.productsList.getIndexById(int(prodId))] += df[prodId][clustId]
                 except ValueError:
                     raise self.invalidColumnsType
+                except IndexError:
+                    raise IndexError("Some ids in lambdas file are not existing in products or clusters files")
+        
+        
         
     def savelambdasToFile(self, filepath):
         df = DataFrame(self.lambdas)
@@ -243,7 +248,7 @@ class ProductsGenerator:
     def logLikelihoodOfRealisationToDistribution(realisation, lambdas):
         realisation = np.array(realisation)
         lambdas = np.array(lambdas)
-        assert (realisation.shape == lambdas.shape and len(realisation.shape == 1) and realisation.shape[0] > 0)
+        assert (realisation.shape == lambdas.shape and len(realisation.shape) == 1 and realisation.shape[0] > 0)
         
         lambdas *= realisation.sum() / lambdas.sum()
         
@@ -256,18 +261,20 @@ class ProductsGenerator:
     def getProductsListAndClusterPrediction(self, clientId, returnLogLikelihoods=False):
         if not clientId in self.hiddenClusters:
             self.clientIds.append(clientId)
-            self.hiddenClusters[clientId] = np.random.randint(len(self.n))
-            self.clientProducts[clientId] = np.zeros(self.m)
+            self.hiddenClusters[clientId] = np.random.randint(self.n)
+            self.clientProducts[clientId] = np.zeros(self.m, dtype='int64')
         
         d = self.lambdas[self.hiddenClusters[clientId]]
         buyCoefficient = np.random.poisson(self.richness * 100) / 100.
         resVector = [np.random.poisson(buyCoefficient * d[i]) for i in range(len(d))]
+        
         check = dict()
         for i in range(self.m):
-            check[self.productsList[i].name] = resVector[i]
-            self.clientProducts[clientId][i] += resVector[i]
+            if resVector[i] > 0:
+                check[self.productsList[i].name] = resVector[i]
+                self.clientProducts[clientId][i] += resVector[i]
     
-        logLikelihoods = [ProductsGenerator.logLikelihoodOfRealisationToDistribution(self.clientProducts[i], self.lambdas[self.hiddenClusters[i]]) for i in self.clientIds]
+        logLikelihoods = [ProductsGenerator.logLikelihoodOfRealisationToDistribution(self.clientProducts[clientId], self.lambdas[i]) for i in range(self.n)]
         prediction = np.argmax(logLikelihoods)
     
         if returnLogLikelihoods:
